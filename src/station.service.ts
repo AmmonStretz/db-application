@@ -9,20 +9,31 @@ import { StationDTO } from './dtos/station.dto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { DistanceDTO } from './dtos/distance.dto';
 import { Station, StationDocument } from './schemas/station.schema';
+import { HttpService } from '@nestjs/axios/dist';
+import { lastValueFrom } from 'rxjs';
+const CSV_URL = 'https://download-data.deutschebahn.com/static/datasets/haltestellen/D_Bahnhof_2020_alle.CSV';
 
 @Injectable()
 export class StationService {
   constructor(
     @InjectModel(Station.name) private stationModel: Model<StationDocument>,
+    private httpService: HttpService,
   ) {
-    this.stationModel.collection.drop().then(
-      () => this.saveStations()
-    );
+    this.stationModel.collection.drop().then(() => this.saveStations());
+  }
+
+  async loadCSVFromAPI(): Promise<string> {
+    return (await lastValueFrom(this.httpService.get(CSV_URL))).data;
+  }
+
+  loadCSVFromFile(): string {
+    const csvFilePath = path.resolve('./data.CSV');
+    return fs.readFileSync(csvFilePath, { encoding: 'utf-8' });
   }
 
   async saveStations(): Promise<void> {
-    const csvFilePath = path.resolve('./data.CSV');
-    const fileContent = fs.readFileSync(csvFilePath, { encoding: 'utf-8' });
+    const fileContent = await this.loadCSVFromAPI();
+    // const fileContent = await this.loadCSVFromFile();
     const fileLines: string[] = fileContent.split('\n').slice(1);
     fileLines.pop();
     await this.stationModel.insertMany(
@@ -62,15 +73,15 @@ export class StationService {
 
   calculateDistance(fromStation: StationDTO, toStation: StationDTO): number {
     return new Haversine().getDistance(
-      new Coordinate(
-        toStation.position.longitude,
-        toStation.position.latitude,
-      ),
-      new Coordinate(
-        fromStation.position.longitude,
-        fromStation.position.latitude,
-      ),
-    ) / 1000;
+        new Coordinate(
+          toStation.position.longitude,
+          toStation.position.latitude,
+        ),
+        new Coordinate(
+          fromStation.position.longitude,
+          fromStation.position.latitude,
+        ),
+      ) / 1000;
   }
 
   async getDistance(from: string, to: string): Promise<DistanceDTO> {
