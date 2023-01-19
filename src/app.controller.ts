@@ -1,12 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { Controller, Get, Param } from '@nestjs/common';
+import { StationService } from './station.service';
+import { DistanceDTO } from './dtos/distance.dto';
 
-@Controller()
+@Controller('api/v1')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: StationService) {}
 
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @Get('distance/:from/:to')
+  async getDistance(
+    @Param('from') from: string,
+    @Param('to') to: string,
+  ): Promise<DistanceDTO> {
+    return await this.appService.getDistance(from, to);
   }
 }
